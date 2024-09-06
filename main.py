@@ -23,7 +23,7 @@ class HuffmanCoding:
         def __eq__(self,other):
             if (other == None):
                 return False
-            if not isinstance(other, HeapNode):
+            if not isinstance(other, HuffmanCoding.HeapNode):
                 return False
             return self.freq == other.freq
 
@@ -58,7 +58,7 @@ class HuffmanCoding:
         if(root == None):
             return
 
-        if(root.char != None):
+        if root.char is not None:
             self.codes[root.char] = current_code
             self.reverse_mapping[current_code] = root.char
             return
@@ -68,9 +68,15 @@ class HuffmanCoding:
 
     #Make nodes for the characters and save them
     def make_codes(self):
-        root = heapq.heappop(self.heap)
-        current_code = ""
-        self.make_codes_helper(root, current_code)
+        #Case for single unique character
+        if len(self.heap) == 1:
+            root = self.heap[0]
+            self.codes[root.char] = "0"
+            self.reverse_mapping["0"] = root.char
+        else:
+            root = heapq.heappop(self.heap)
+            current_code = ""
+            self.make_codes_helper(root, current_code)
     
     #Encode the text by replacing the characters 
     def get_encoded_text(self,text):
@@ -99,22 +105,31 @@ class HuffmanCoding:
         return b
     
     def compress(self):
-        filename, file_extension = os.path.splitext(self.path)
-        output_path = filename + ".bin"
-        with open(self.path, 'r+') as file, open(output_path, 'wb') as output:
-            text = file.read()
-            text = text.rstrip()
-            frequency = self.make_frequency_dict(text)
-            self.make_heap(frequency)
-            self.merge_nodes()
-            encoded_text = self.get_encoded_text(text)
-            padded_encoded_text = self.pad_encoded_text(encoded_text)
-            b = self.get_byte_array(padded_encoded_text)
-            output.write(bytes(b))
-        print("Compressed")
-        return output_path
+        try:
+            #Check if the file is empty
+            if os.stat(self.path).st_size == 0:
+                raise ValueError("Input File is Empty")
+            
+            filename, file_extension = os.path.splitext(self.path)
+            output_path = filename + ".bin"
+            with open(self.path, 'r+') as file, open(output_path, 'wb') as output:
+                text = file.read()
+                text = text.rstrip()
+                frequency = self.make_frequency_dict(text)
+                self.make_heap(frequency)
+                self.merge_nodes()
+                encoded_text = self.get_encoded_text(text)
+                padded_encoded_text = self.pad_encoded_text(encoded_text)
+                b = self.get_byte_array(padded_encoded_text)
+                output.write(bytes(b))
+            print("File Compressed Successfully")
+            return output_path
+        except FileNotFoundError:
+            print(f"Error: The file '{self.path}' was not found.")
+        except Exception as e:
+            print(f"Error: {str(e)}")
 
-    #Fundctions for decompression
+    #Functions for decompression
 
     def remove_padding(self, padded_encoded_text):
         padded_info = padded_encoded_text[:8]
@@ -137,21 +152,26 @@ class HuffmanCoding:
 
 
     def decompress(self, input_path):
-        filename, file_extension = os.path.splitext(self.path)
-        output_path = filename + "_decompressed" + ".txt"
+        try:
+            filename, file_extension = os.path.splitext(input_path)
+            output_path = filename + "_decompressed" + ".txt"
         
-        with open(input_path, 'rb') as file, open(output_path, 'w') as output:
-            bit_string = ""
-            byte = file.read(1)
-            while(len(byte) > 0):
-                byte = ord(byte)
-                bits = bin(byte)[2:].rjust(8, '0')
-                bit_string += bits
+            with open(input_path, 'rb') as file, open(output_path, 'w') as output:
+                bit_string = ""
                 byte = file.read(1)
+                while(len(byte) > 0):
+                    byte = ord(byte)
+                    bits = bin(byte)[2:].rjust(8, '0')
+                    bit_string += bits
+                    byte = file.read(1)
             
-            encoded_text = self.remove_padding(bit_string)
-            decompressed_text = self.decode_text(encoded_text)
-            output.write(decompressed_text)
+                encoded_text = self.remove_padding(bit_string)
+                decompressed_text = self.decode_text(encoded_text)
+                output.write(decompressed_text)
 
-        print("Decompressed")
-        return output_path
+            print("Decompressed")
+            return output_path
+        except FileNotFoundError:
+            print(f"Error: The file '{input_path}' was not found.")
+        except Exception as e:
+            print(f"Error: {str(e)}")
